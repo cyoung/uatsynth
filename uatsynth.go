@@ -87,9 +87,9 @@ func dlac_encode(s string) ([]byte, error) {
 }
 
 //http://www.icao.int/safety/acp/inactive%20working%20groups%20library/acp-wg-c-uat-4/uat-swg04-wp05%20-%20draft%20tech%20manual-v0-4%20.pdf
-func (u *UATMsg) EncodeUplink() {
+func (u *UATMsg) EncodeUplink() ([][]byte, error) {
 	// Allocate 8 bytes for the header.
-	u.msg = make([]byte, 8)
+	headerBuf := make([]byte, 8)
 
 	// Tower location data.
 	if u.Lat < 0 {
@@ -103,32 +103,35 @@ func (u *UATMsg) EncodeUplink() {
 	raw_lon := uint32(u.Lon * (16777216.0 / 360.0))
 
 	// Lat.
-	u.msg[0] = byte(raw_lat >> 15)
-	u.msg[1] = byte(raw_lat >> 7)
-	u.msg[2] = byte((raw_lat & 0x7F) << 1)
+	headerBuf[0] = byte(raw_lat >> 15)
+	headerBuf[1] = byte(raw_lat >> 7)
+	headerBuf[2] = byte((raw_lat & 0x7F) << 1)
 
 	// Lon.
-	u.msg[2] = u.msg[2] | byte(raw_lon>>23)
-	u.msg[3] = byte(raw_lon >> 15)
-	u.msg[4] = byte(raw_lon >> 7)
-	u.msg[5] = byte((raw_lon & 0x7F) << 1)
+	headerBuf[2] = headerBuf[2] | byte(raw_lon>>23)
+	headerBuf[3] = byte(raw_lon >> 15)
+	headerBuf[4] = byte(raw_lon >> 7)
+	headerBuf[5] = byte((raw_lon & 0x7F) << 1)
 
 	// UTC coupled, 3.2.2.1.4.
 	if u.UTCCoupled {
-		u.msg[6] = u.msg[6] | 0x80
+		headerBuf[6] = headerBuf[6] | 0x80
 	}
 
 	// Application Data Valid, 3.2.2.1.6.
 	//FIXME: Always true.
-	u.msg[6] = u.msg[6] | 0x20
+	headerBuf[6] = headerBuf[6] | 0x20
 
 	// Slot ID, 3.2.2.1.7.
 	//FIXME: Static slot ID of "1".
-	u.msg[6] = u.msg[6] | 0x01
+	headerBuf[6] = headerBuf[6] | 0x01
 
 	// TIS-B Site ID, 3.2.2.1.8.
 	//FIXME: Static site ID of "1".
-	u.msg[7] = 0x10
+	headerBuf[7] = 0x10
+
+	// This buffer contains the frames (with header).
+	frameBuffer := make([][]byte, 0)
 
 	// Now begin adding in the info frames.
 	for i := 0; i < len(u.Frames); i++ {
@@ -139,6 +142,9 @@ func (u *UATMsg) EncodeUplink() {
 		}
 		switch frm.Product_id {
 		case 413:
+			if len(frm.Text_data) == 0 { // Nothing to do.
+				continue
+			}
 			header := make([]byte, 2)      // Frame header.
 			frm.Raw_data = make([]byte, 4) // Actual info frame, starting with info frame header.
 
@@ -173,22 +179,36 @@ func (u *UATMsg) EncodeUplink() {
 			header[0] = byte(frm.frame_length >> 1)
 			header[1] = byte((frm.frame_length & 0x01) << 7)
 
-			u.msg = append(u.msg, header...)       // Pre-info frame data.
-			u.msg = append(u.msg, frm.Raw_data...) // Info frame data.
+			// Save the data in the framebuffer.
+			frameData := append(header, frm.Raw_data...)
+			frameBuffer = append(frameBuffer, frameData)
 		default:
 			break
 		}
 	}
 
-	if len(u.msg) > 432 {
-		panic("message larger than 432 bytes.") //FIXME: Fail a bit more gracefully if this happens.
+	if len(frameBuffer) == 0 { // Nothing to do.
+		return nil, errors.New("nothing to encode.")
 	}
 
-	// Pad to 432 bytes.
-	u.msg = append(u.msg, make([]byte, 432-len(u.msg))...)
-
-	for i := 0; i < len(u.msg); i++ {
-		fmt.Printf("%02x", u.msg[i])
+	// Copy the same header multiple times, adding frames until we reach 432 bytes.
+	messages := make([][]byte, 1)
+	messages[0] = headerBuf
+	// Generate messages up to 432 bytes long.
+	for i := 0; i < len(frameBuffer); i++ {
+		curMessage := len(messages) - 1
+		if len(messages[curMessage])+len(frameBuffer[i]) >= 432 {
+			newMessage := append(headerBuf, frameBuffer[i]...)
+			messages = append(messages, newMessage)
+		} else {
+			messages[curMessage] = append(messages[curMessage], frameBuffer[i]...)
+		}
 	}
-	fmt.Printf(";\n")
+
+	// Pad all messages to 432 bytes.
+	for i := 0; i < len(messages); i++ {
+		messages[i] = append(messages[i], make([]byte, 432-len(messages[i]))...)
+	}
+
+	return messages, nil
 }

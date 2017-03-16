@@ -1,5 +1,9 @@
 package main
 
+import (
+	"fmt"
+)
+
 func main() {
 	var msg UATMsg
 
@@ -48,17 +52,15 @@ func main() {
 
 	msg.Frames = append(msg.Frames, f4)
 
-	/*
-		// Add a frame with a single METAR.
-		f5 := new(UATFrame)
-		f5.Text_data = append(f5.Text_data, "METAR CYYZ 152100Z 34022G35KT 15SM FEW050 FEW120 OVC200 M03/M15 A2987 RMK SC1AC1CS6 SLP128")
-		f5.FISB_hours = 18
-		f5.FISB_minutes = 29
-		f5.Product_id = 413
-		f5.Frame_type = 0
+	// Add a frame with a single METAR.
+	f5 := new(UATFrame)
+	f5.Text_data = append(f5.Text_data, "METAR CYYZ 152100Z 34022G35KT 15SM FEW050 FEW120 OVC200 M03/M15 A2987 RMK SC1AC1CS6 SLP128")
+	f5.FISB_hours = 18
+	f5.FISB_minutes = 29
+	f5.Product_id = 413
+	f5.Frame_type = 0
 
-		msg.Frames = append(msg.Frames, f5)
-	*/
+	msg.Frames = append(msg.Frames, f5)
 
 	// Add a frame with a single METAR.
 	f6 := new(UATFrame)
@@ -70,6 +72,18 @@ func main() {
 
 	msg.Frames = append(msg.Frames, f6)
 
-	msg.EncodeUplink()
+	encodedMessages, err := msg.EncodeUplink()
+	if err != nil {
+		fmt.Printf("error encoding: %s\n", err.Error())
+		return
+	}
+
+	for _, m := range encodedMessages {
+		fmt.Printf("+")
+		for i := 0; i < len(m); i++ {
+			fmt.Printf("%02x", m[i])
+		}
+		fmt.Printf(";\n")
+	}
 
 }
