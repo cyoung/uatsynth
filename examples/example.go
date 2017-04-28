@@ -7,7 +7,7 @@ import (
 )
 
 func main() {
-	var msg UATMsg
+	var msg uatsynth.UATMsg
 
 	msg.decoded = true //FIXME: There should be an indicator to show whether or not the frame has been decoded or encoded.
 	msg.Lat = 42.984923
@@ -23,7 +23,7 @@ func main() {
 			fmt.Printf("couldn't get METAR for '%s': %s\n", station, err.Error())
 			continue
 		}
-		f := new(UATFrame)
+		f := new(uatsynth.UATFrame)
 		f.Text_data = append(f.Text_data, metar.Text)
 		f.FISB_hours = uint32(metar.Observation.Time.Hour())
 		f.FISB_minutes = uint32(metar.Observation.Time.Minute())
