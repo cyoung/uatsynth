@@ -52,7 +52,7 @@ type UATMsg struct {
 	SignalStrength int
 	// Raw message.
 	msg     []byte
-	decoded bool //FIXME: There should be an indicator to show whether or not the frame has been decoded or encoded.
+	Decoded bool //FIXME: There should be an indicator to show whether or not the frame has been decoded or encoded.
 
 	// Station metadata.
 	// Station location for uplink frames, aircraft position for downlink frames.
