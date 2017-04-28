@@ -1,5 +1,5 @@
 example:
-	go build example.go uatsynth.go
+	go build examples/example.go
 
 clean:
 	rm -f example
