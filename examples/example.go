@@ -9,7 +9,7 @@ import (
 func main() {
 	var msg uatsynth.UATMsg
 
-	msg.decoded = true //FIXME: There should be an indicator to show whether or not the frame has been decoded or encoded.
+	msg.Decoded = true //FIXME: There should be an indicator to show whether or not the frame has been decoded or encoded.
 	msg.Lat = 42.984923
 	msg.Lon = -81.245277
 	msg.UTCCoupled = true //FIXME: GPS lock.
